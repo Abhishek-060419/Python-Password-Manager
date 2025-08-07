@@ -1,5 +1,10 @@
-import json,hashlib,os,base64
+import json,hashlib,os,base64,getpass
 from cryptography.fernet import Fernet
+
+MASTER_FILE = "Master.json"
+VAULT_FILE = "Vault.json"                                                               
+FERNET_FILE = "Fernet.key"
+
 
 #Creating and Storing Master Password
 
@@ -13,7 +18,7 @@ def create_Master_Password(password):
         'Hash': base64.b64encode(hash).decode()
     }
 
-    with open("Master.json","w") as f:                                                 #Storing hash and salt in json file
+    with open(MASTER_FILE,"w") as f:                                                 #Storing hash and salt in json file
         json.dump(data,f)
 
     print("The master password has been successfully created and stored securely.")
@@ -23,7 +28,11 @@ def create_Master_Password(password):
 #Verifying the Master Password
 
 def verify_Master_Password(input_password):
-    with open("Master.json","r") as f:
+    if not os.path.exists("MASTER_FILE"):
+        print("Master password not set up yet. Please create one first.")
+        return False
+    
+    with open(MASTER_FILE,"r") as f:
         data=json.load(f)
 
     stored_salt = base64.b64decode(data['Salt'])                                             #Retrieving stored salt value
@@ -44,10 +53,10 @@ def verify_Master_Password(input_password):
 #Creating a Fernet key
 
 def create_Fernet_Key():
-    if not os.path.exists("Fernet.key"):
+    if not os.path.exists(FERNET_FILE):
         key=Fernet.generate_key()                                                               #Generate a fernet key
-        with open("Fernet.key","wb") as f:
-            f.write(key)                                                                        #Store the fernt key in file
+        with open(FERNET_FILE,"wb") as f:
+            f.write(key)                                                                        #Store the fernet key in file
     else:
         print("The file already exists.")
 
@@ -55,7 +64,7 @@ def create_Fernet_Key():
 #Loading the fernet key
 
 def load_Key():
-    with open("Fernet.key","rb") as f:
+    with open(FERNET_FILE,"rb") as f:
         return f.read()
 
 
@@ -80,8 +89,8 @@ def decrypt_Password(password):
 #Creating Vault for storing the service details
 
 def initialize_Vault():
-    if not os.path.exists("Vault.json"):                                                #Checking if Vault json file already exists
-        with open("Vault.json","w") as f:
+    if not os.path.exists(VAULT_FILE):                                                #Checking if Vault json file already exists
+        with open(VAULT_FILE,"w") as f:
             json.dump({},f)
     else:
         print("Vault File already exists. Initialization skipped.")
@@ -92,17 +101,17 @@ def initialize_Vault():
 
 def add_Details(service,username,password):
     try:
-        with open("Vault.json","r") as f:
+        with open(VAULT_FILE,"r") as f:
             vault=json.load(f)
         
         encrypted_pw=encrypt_Password(password)
 
-        vault[service]={                                                              #Adding the parametrs to the Vault json file
+        vault[service]={                                                              #Adding the parameters to the Vault json file
             'Username': username,
             'Password': encrypted_pw
         }
 
-        with open("Vault.json","w") as f:
+        with open(VAULT_FILE,"w") as f:
             json.dump(vault,f,indent=4)
     
     except FileNotFoundError:
@@ -114,7 +123,7 @@ def add_Details(service,username,password):
 
 def get_Details(service):
     try:
-        with open("Vault.json") as f:
+        with open(VAULT_FILE) as f:
             vault=json.load(f)
         
         if service in vault:
@@ -138,7 +147,7 @@ def get_Details(service):
 
 def display_Vault():
     try:
-        with open("Vault.json","r") as f:
+        with open(VAULT_FILE,"r") as f:
             vault=json.load(f)
         i=1
         for services,credentials in vault.items():
@@ -157,15 +166,32 @@ def display_Vault():
 
 ####### Menu driven program function #########
 
+def check_and_setup():
+    if not os.path.exists(MASTER_FILE):
+        print("Setting up Master Password...")
+        password1 = getpass.getpass("Create a master password: ")
+        password2 = getpass.getpass("Confirm your master password: ")
+        if password1 != password2:
+            print("Passwords do not match.")
+            return
+        else:
+            create_Master_Password(password1)
+
+    if not os.path.exists(FERNET_FILE):
+        print(" Creating Fernet key...")
+        create_Fernet_Key()
+
+    if not os.path.exists(VAULT_FILE):
+        print("Initializing Vault...")
+        initialize_Vault()
+
+
 def menu():
     print("Welcome to Password Manager.")
-    print("\n1.Create Vault File.")
-    print("\n2.Create Master File.")
-    print("\n3.Create Fernet key.")
-    print("\n4.Add service details")
-    print("\n5.Get service details")
-    print("\n6.Display all services")
-    print("\n7.Exit")
+    print("\n1.Add service details")
+    print("\n2.Get service details")
+    print("\n3.Display all services")
+    print("\n4.Exit")
 
     while True:
         try:
@@ -173,38 +199,28 @@ def menu():
         except ValueError:
             print("Please enter an integer value!")
             continue
-        
+    
         if choice==1:
-            initialize_Vault()
-    
-        elif choice==2:
-            mstr_pswrd=input("\nEnter masterpassword:")
-            create_Master_Password(mstr_pswrd)
-    
-        elif choice==3:
-            create_Fernet_Key()
-    
-        elif choice==4:
-            psswrd=input("\nEnter your master password:")
+            psswrd=getpass.getpass("\nEnter your master password:")
             if verify_Master_Password(psswrd):
-                service=input("\nEnter your service name:")
-                username=input("\nEnter your username:")
+                service=input("\nEnter your service name:").strip()
+                username=input("\nEnter your username:").strip()
                 password=input("\nEnter your password:")
 
                 add_Details(service,username,password)
         
-        elif choice==5:
-            psswrd=input("\nEnter your master password:")
+        elif choice==2:
+            psswrd=getpass.getpass("\nEnter your master password:")
             if verify_Master_Password(psswrd):
-                servie_name=input("\nEnter the name of the service to display:")
+                servie_name=input("\nEnter the name of the service to display:").strip()
                 get_Details(servie_name)
         
-        elif choice==6:
-            psswrd=input("\nEnter your master password:")
+        elif choice==3:
+            psswrd=getpass.getpass("\nEnter your master password:")
             if verify_Master_Password(psswrd):
                 display_Vault()
         
-        elif choice==7:
+        elif choice==4:
             print("Exiting the menu.")
             break
         
@@ -213,5 +229,6 @@ def menu():
         
 
 if __name__ == "__main__":
+    check_and_setup()
     menu()
 
