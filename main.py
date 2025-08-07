@@ -28,7 +28,7 @@ def create_Master_Password(password):
 #Verifying the Master Password
 
 def verify_Master_Password(input_password):
-    if not os.path.exists("MASTER_FILE"):
+    if not os.path.exists(MASTER_FILE):
         print("Master password not set up yet. Please create one first.")
         return False
     
@@ -208,6 +208,11 @@ def menu():
                 password=input("\nEnter your password:")
 
                 add_Details(service,username,password)
+                success = add_details(service, username, password)
+                if success:
+                    print("Details added successfully!")
+                else:
+                    print("Failed to add details.")
         
         elif choice==2:
             psswrd=getpass.getpass("\nEnter your master password:")
